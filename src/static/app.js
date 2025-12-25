@@ -13,6 +13,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // Clear loading message
       activitiesList.innerHTML = "";
 
+      // (Optional but prevents duplicates if fetchActivities is ever re-run)
+      activitySelect.querySelectorAll('option:not([value=""])').forEach((o) => o.remove());
+
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
         const activityCard = document.createElement("div");
@@ -20,12 +23,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-        `;
+        // Build DOM safely (avoid injecting raw HTML with user-provided values)
+        const title = document.createElement("h4");
+        title.textContent = name;
+
+        const desc = document.createElement("p");
+        desc.textContent = details.description;
+
+        const schedule = document.createElement("p");
+        schedule.innerHTML = `<strong>Schedule:</strong> ${details.schedule}`;
+
+        const availability = document.createElement("p");
+        availability.innerHTML = `<strong>Availability:</strong> ${spotsLeft} spots left`;
+
+        const participantsWrap = document.createElement("div");
+        participantsWrap.className = "participants";
+
+        const participantsTitle = document.createElement("p");
+        participantsTitle.className = "participants-title";
+        participantsTitle.innerHTML = "<strong>Participants:</strong>";
+
+        const participantsList = document.createElement("ul");
+        participantsList.className = "participants-list";
+
+        const participants = Array.isArray(details.participants) ? details.participants : [];
+        if (participants.length === 0) {
+          const empty = document.createElement("li");
+          empty.className = "participants-empty";
+          empty.textContent = "No participants yet.";
+          participantsList.appendChild(empty);
+        } else {
+          participants.forEach((email) => {
+            const li = document.createElement("li");
+            li.textContent = email;
+            participantsList.appendChild(li);
+          });
+        }
+
+        participantsWrap.appendChild(participantsTitle);
+        participantsWrap.appendChild(participantsList);
+
+        activityCard.appendChild(title);
+        activityCard.appendChild(desc);
+        activityCard.appendChild(schedule);
+        activityCard.appendChild(availability);
+        activityCard.appendChild(participantsWrap);
 
         activitiesList.appendChild(activityCard);
 
