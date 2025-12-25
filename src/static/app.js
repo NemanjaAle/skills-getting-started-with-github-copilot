@@ -4,6 +4,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
+  function showMessage(text, type) {
+    messageDiv.textContent = text;
+    messageDiv.className = type;
+    messageDiv.classList.remove("hidden");
+
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
+  }
+
+  async function unregisterParticipant(activityName, email) {
+    const response = await fetch(
+      `/activities/${encodeURIComponent(activityName)}/signup?email=${encodeURIComponent(email)}`,
+      { method: "DELETE" }
+    );
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.detail || "Failed to unregister participant");
+    }
+
+    return result;
+  }
+
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
@@ -55,7 +80,35 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           participants.forEach((email) => {
             const li = document.createElement("li");
-            li.textContent = email;
+
+            const emailSpan = document.createElement("span");
+            emailSpan.className = "participant-email";
+            emailSpan.textContent = email;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "participant-remove";
+            removeBtn.setAttribute("aria-label", `Unregister ${email} from ${name}`);
+            removeBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 7h2v9h-2v-9zm4 0h2v9h-2v-9zM7 10h2v9H7v-9zm-1-1h12l-1 12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 9z" />
+              </svg>
+            `;
+
+            removeBtn.addEventListener("click", async () => {
+              removeBtn.disabled = true;
+              try {
+                const result = await unregisterParticipant(name, email);
+                showMessage(result.message || "Participant unregistered", "success");
+                await fetchActivities();
+              } catch (err) {
+                showMessage(err.message || "Failed to unregister participant", "error");
+                removeBtn.disabled = false;
+              }
+            });
+
+            li.appendChild(emailSpan);
+            li.appendChild(removeBtn);
             participantsList.appendChild(li);
           });
         }
@@ -101,24 +154,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        showMessage(result.message, "success");
         signupForm.reset();
+        await fetchActivities();
       } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        showMessage(result.detail || "An error occurred", "error");
       }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to sign up. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
+      showMessage("Failed to sign up. Please try again.", "error");
       console.error("Error signing up:", error);
     }
   });
